@@ -1,0 +1,60 @@
+services:
+  backend-flask:
+    image: aqaziuog/lms-backend:2.0.0
+    ports:
+      - "4000:4000"
+    environment:
+      - FLASK_ENV=development
+      - FLASK_APP=app.py
+    logging:
+      driver: "gelf"
+      options:
+        gelf-address: "udp://172.22.0.4:12201"
+    networks:
+      - elknet
+
+  frontend:
+    image: aqaziuog/lms-frontend:2.0.0
+    ports:
+      - "80:80"
+    depends_on:
+      - backend-flask
+    logging:
+      driver: "gelf"
+      options:
+        gelf-address: "udp://172.22.0.4:12201"
+    networks:
+      - elknet
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.9
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+    ports:
+      - "9200:9200"
+    networks:
+      - elknet
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:7.17.9
+    volumes:
+      - ./logstash.conf:/usr/share/logstash/pipeline/logstash.conf
+    ports:
+      - "12201:12201/udp"
+    networks:
+      - elknet
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.17.9
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    networks:
+      - elknet
+
+networks:
+  elknet:
+    driver: bridge
+
